@@ -1,33 +1,5 @@
 name: "Paso 3 — Mapa de Procesos (flujo único)"
 
-# Úsalo si tu modelo de ciclo de vida NO tiene procesos en paralelo
-# (secuencial, iterativo, incremental, cascada simple, etc.).
-# Si tu modelo sí tiene ramas en paralelo, usa en su lugar el workflow
-# "mapa-procesos-paralelo.yml".
-#
-# Fíjate el primer proceso (Requisitos) crea el documento Y agrega su propia
-# información en el mismo job (en dos steps independientes), y el
-# último proceso (Testing) agrega su información Y hace el commit/push
-# en el mismo job. Así, cada job que ves en la pestaña Actions es un
-# proceso real del proyecto — no hay jobs de "plumbing" sin información
-# relevante ensuciando la vista del flujo.
-#
-# Cómo usarlo:
-# 1. Reemplaza el contenido de los jobs de ejemplo (requisitos, diseño,
-#    implementacion, testing) por los procesos reales que tu equipo
-#    seleccionó en el Paso 3. Puedes duplicar el bloque de un job tantas
-#    veces como procesos tengas, ajustando el "needs:" para reflejar el
-#    orden real de tu modelo de ciclo de vida.
-# 2. El primer job de la cadena es el único que debe crear el documento
-#    (con el encabezado) además de agregar su proceso, cada cosa en su
-#    propio step; los jobs intermedios solo descargan, agregan y vuelven
-#    a subir el artifact; el último job, además de agregar su proceso,
-#    hace el commit/push.
-# 3. Ve a la pestaña "Actions" -> este workflow -> "Run workflow".
-#    Se dispara SOLO manualmente para no gastar minutos de CI de la
-#    organización.
-# 4. El resultado final queda en docs/mapa-procesos.md.
-
 on:
   workflow_dispatch:
 
@@ -35,36 +7,28 @@ permissions:
   contents: write
 
 jobs:
-  # -----------------------------------------------------------------
-  # Primer proceso: crea el documento (con su encabezado) en un step, y
-  # agrega su propia información en otro step, independiente. No tiene
-  # "needs:" porque es la raíz de la cadena.
-  # -----------------------------------------------------------------
   requisitos:
-    name: "Requisitos"
+    name: "1. Definición de Requisitos"
     runs-on: ubuntu-latest
     steps:
       - name: Crear documento
         run: |
           mkdir -p docs
           cat <<'EOF' > docs/mapa-procesos.md
-          # Mapa de Procesos y Modelo de Ciclo de Vida
+          # Mapa de Procesos Clave — EventMaster
 
-          > Generado con el workflow de flujo único. La definición formal del
-          > modelo de ciclo de vida (justificación, orden, relación entre
-          > procesos) se documenta en la wiki, página `04c-Modelo-Ciclo-Vida`,
-          > no en este archivo.
+          > Generado automáticamente con el workflow de flujo único (modelo iterativo e incremental). La caracterización completa (estratégicos, de apoyo y clave) se documenta en la wiki (`03a-Mapa-Procesos-Caracterizacion`), y la definición formal del modelo de ciclo de vida en `04c-Modelo-Ciclo-Vida`.
 
           EOF
       - name: Agregar este proceso al documento
         run: |
           cat <<'EOF' >> docs/mapa-procesos.md
-          ## Proceso: Requisitos
+          ## Proceso: Definición de Requisitos
 
-          - **Entradas:** Modelo verbal extendido, necesidades de negocio e interesados
-          - **Actividades:** Elicitación, análisis y especificación de requisitos
-          - **Salidas:** Documento de especificación de requisitos
-          - **Recursos:** BABOK v3, entrevistas/supuestos del equipo
+          - **Entradas:** Modelo verbal original de EventMaster, extensión del modelo verbal (`01-Extension-Modelo-Verbal`), retroalimentación de interesados.
+          - **Actividades:** Identificar actores, definir necesidades de negocio e interesados, especificar requisitos funcionales (historias de usuario con criterios de aceptación), requisitos no funcionales con métricas y requisitos de interfaz.
+          - **Salidas:** Actores (`02b`), Necesidades (`02c`, `02d`), Interfaces (`02e`), y línea base de 11 módulos, RF y RNF en GitHub Issues (vista Registro de Requisitos).
+          - **Recursos:** Guía BABOK v3, GitHub Wiki e Issues, sesiones de análisis del equipo.
 
           EOF
       - name: Subir artifact
@@ -74,13 +38,8 @@ jobs:
           path: docs/mapa-procesos.md
           overwrite: true
 
-  # -----------------------------------------------------------------
-  # Procesos intermedios: descargan el documento, agregan su proceso y
-  # lo vuelven a subir. Copia este bloque por cada proceso intermedio
-  # que necesites.
-  # -----------------------------------------------------------------
-  diseno:
-    name: "Diseño"
+  arquitectura_diseno:
+    name: "2. Arquitectura y Diseño"
     needs: requisitos
     runs-on: ubuntu-latest
     steps:
@@ -92,12 +51,12 @@ jobs:
       - name: Agregar este proceso al documento
         run: |
           cat <<'EOF' >> docs/mapa-procesos.md
-          ## Proceso: Diseño
+          ## Proceso: Arquitectura y Diseño
 
-          - **Entradas:** Documento de especificación de requisitos
-          - **Actividades:** Definición de módulos, interfaces y decisiones de diseño
-          - **Salidas:** Vista arquitectónica del sistema
-          - **Recursos:** Requisitos funcionales/no funcionales priorizados
+          - **Entradas:** Línea base de requisitos funcionales y no funcionales, requisitos de interfaz (`02e-Requisitos-Interfaz`) y restricciones tecnológicas (React y PostgreSQL).
+          - **Actividades:** Diseñar la arquitectura frontend-backend (API REST sobre HTTPS), modelar la base de datos en PostgreSQL, definir el esquema de almacenamiento local cifrado y sincronización *offline*, y diseñar prototipos de interfaz accesibles (WCAG 2.1).
+          - **Salidas:** Vistas arquitectónicas, modelo entidad-relación de PostgreSQL, especificación de endpoints API y prototipos UI/UX.
+          - **Recursos:** Herramientas de modelado y prototipado, especificaciones de React y PostgreSQL, pautas WCAG 2.1.
 
           EOF
       - name: Subir artifact
@@ -108,8 +67,8 @@ jobs:
           overwrite: true
 
   implementacion:
-    name: "Implementación"
-    needs: diseno
+    name: "3. Implementación"
+    needs: arquitectura_diseno
     runs-on: ubuntu-latest
     steps:
       - name: Descargar artifact
@@ -122,10 +81,10 @@ jobs:
           cat <<'EOF' >> docs/mapa-procesos.md
           ## Proceso: Implementación
 
-          - **Entradas:** Vista arquitectónica del sistema
-          - **Actividades:** Construcción de los módulos definidos en el diseño
-          - **Salidas:** Componentes de software construidos
-          - **Recursos:** Estándares de codificación, entorno de desarrollo
+          - **Entradas:** Especificación de arquitectura y diseño, historias de usuario priorizadas por iteración y estándares de codificación.
+          - **Actividades:** Codificar interfaces en React, desarrollar lógica de negocio y APIs del backend, implementar persistencia en PostgreSQL, programar la carga diferida de banners y el módulo móvil de lectura QR *offline*, y ejecutar pruebas unitarias.
+          - **Salidas:** Componentes de software funcionales por módulo, migraciones de base de datos y resultados de pruebas unitarias.
+          - **Recursos:** Entorno de desarrollo (VS Code, Node.js, React, PostgreSQL), Git/GitHub, librerías de escaneo QR y cifrado.
 
           EOF
       - name: Subir artifact
@@ -135,14 +94,65 @@ jobs:
           path: docs/mapa-procesos.md
           overwrite: true
 
-  # -----------------------------------------------------------------
-  # Último proceso: agrega su propia información Y, en el mismo job,
-  # hace el commit/push del documento final. Cambia el "needs:" para
-  # que apunte a tu ÚLTIMO proceso real.
-  # -----------------------------------------------------------------
-  testing:
-    name: "Testing"
+  integracion:
+    name: "4. Integración"
     needs: implementacion
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mapa-procesos
+          path: docs/
+      - name: Agregar este proceso al documento
+        run: |
+          cat <<'EOF' >> docs/mapa-procesos.md
+          ## Proceso: Integración
+
+          - **Entradas:** Componentes de software implementados y probados unitariamente, especificación de interfaces externas (`02e-Requisitos-Interfaz`).
+          - **Actividades:** Ensamblar frontend React con el backend y PostgreSQL, conectar servicios externos (notificaciones, MFA, mapas y pagos), verificar la sincronización idempotente del padrón *offline* y ejecutar pruebas de integración.
+          - **Salidas:** Sistema EventMaster integrado en ambiente de pruebas y reporte de pruebas de integración.
+          - **Recursos:** Ambiente de integración/staging, APIs/sandboxes de servicios externos, herramientas de pruebas de API.
+
+          EOF
+      - name: Subir artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mapa-procesos
+          path: docs/mapa-procesos.md
+          overwrite: true
+
+  verificacion_validacion:
+    name: "5. Verificación y Validación"
+    needs: integracion
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mapa-procesos
+          path: docs/
+      - name: Agregar este proceso al documento
+        run: |
+          cat <<'EOF' >> docs/mapa-procesos.md
+          ## Proceso: Verificación y Validación
+
+          - **Entradas:** Sistema integrado, criterios de aceptación de los 54 RF y umbrales de los 17 RNF (`[RNF-01]` a `[RNF-17]`).
+          - **Actividades:** Ejecutar pruebas funcionales de extremo a extremo, pruebas de carga y rendimiento (tiempos de respuesta y concurrencia), pruebas de seguridad (MFA y cifrado), validación de modo *offline* QR y pruebas de usabilidad (SUS ≥ 80) y accesibilidad (WCAG 2.1).
+          - **Salidas:** Reporte consolidado de pruebas, registro de defectos corregidos y acta de validación del prototipo funcional.
+          - **Recursos:** Plan y casos de prueba, herramientas de pruebas de rendimiento/carga, dispositivos móviles para pruebas de campo QR, encuestas SUS.
+
+          EOF
+      - name: Subir artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mapa-procesos
+          path: docs/mapa-procesos.md
+          overwrite: true
+
+  transicion:
+    name: "6. Transición"
+    needs: verificacion_validacion
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -156,15 +166,15 @@ jobs:
       - name: Agregar este proceso al documento
         run: |
           cat <<'EOF' >> docs/mapa-procesos.md
-          ## Proceso: Testing
+          ## Proceso: Transición
 
-          - **Entradas:** Componentes de software construidos
-          - **Actividades:** Diseño y ejecución de pruebas, registro de defectos
-          - **Salidas:** Reporte de pruebas, defectos identificados
-          - **Recursos:** Plan de pruebas, casos de prueba
+          - **Entradas:** Prototipo funcional verificado y validado, manuales/guías de usuario y plan de despliegue.
+          - **Actividades:** Aprovisionar infraestructura productiva con alta disponibilidad (uptime ≥ 99.9%), desplegar aplicación y base de datos, configurar monitoreo de incidencias (MTTR < 24 h) y entregar la plataforma al cliente.
+          - **Salidas:** Plataforma EventMaster operando en producción, actas de entrega y canales activos de retroalimentación de usuarios.
+          - **Recursos:** Infraestructura cloud/hosting, scripts de despliegue, herramientas de monitoreo y alertas, documentación de usuario.
 
           EOF
       - name: Commit y push
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "docs(mapa-procesos): actualizar mapa de procesos (flujo único)"
+          commit_message: "docs(mapa-procesos): actualizar mapa de procesos clave (flujo único)"
